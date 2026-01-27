@@ -5,19 +5,70 @@
 - Eigene Hardware/System mit docker runtime (16GB RAM)
 - Grundlegendes Verstaendnis von Docker bzw. Containern
 
-## Installation k3d (15min)
+```
+docker to be able to use k3d at all
+
+    Note: k3d v5.x.x requires at least Docker v20.10.5 (runc >= v1.0.0-rc93) to work properly
+
+
+
+## Installation k3d (15min) und Cluster erstellen
 
 Wir starten gemeinsam unser erstes Kubernetes Cluster mit k3d (Wrapper um k3s).
 Dann nutzen wir `kubectl` um einen groben Überblick über das erstellte Kubernetes Cluster zu gewinnnen.
+
+```bash
+# member of docker group?
+groups | grep docker
+
+# add user to docker group
+usermod -a -G docker $USER
+newgrp docker
+
+# is docker service running?
+systemctl status docker
+
+# k3d installation via shell script or see other install methods https://k3d.io/stable/#install-current-latest-release
+curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+# create default cluster
+k3d cluster create
+
+```
 
 ## Erste Schritte
 
 ### kubectl (10min)
 
+
+
 Was ist kubectl und wie benutze ich es:
 kubectl get ...
 kubectl api-resources
 kubectl explain
+
+```bash
+# install on ubuntu 24.x via
+sudo snap install kubectl --classic
+
+# check cluster info
+kubectl cluster-info
+kubectl get nodes
+
+# why does this work? k3d cluster create created a kubeconfig at
+less ~/.kube/config
+
+# what workloads/pods/containers run on the default cluster?
+kubectl get pods --all-namespaces
+# should return (core)dns, helm installs, local-path-provisioner(storage), metrics server and loadbalancer(traefik)
+
+# install k9s or openlense or both
+
+k create deployment --image hashicorp/http-echo test
+
+k port-forward -n default test-* 5678
+
+```
 
 ### Overview Deployment, StatefulSet, DaemonSet
 
