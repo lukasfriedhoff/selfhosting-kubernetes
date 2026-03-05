@@ -13,7 +13,7 @@ Nach dem Workshop koennen Teilnehmende:
 - Grundlegendes Docker/Container-Verstaendnis
 
 
-```
+```sh
 Note: k3d v5.x.x requires at least Docker v20.10.5 (runc >= v1.0.0-rc93) to work properly
 
 # Docker muss laufen
@@ -21,6 +21,7 @@ systemctl status docker
 
 # User fuer Docker berechtigen
 sudo usermod -aG docker "$USER"
+groups | grep docker
 newgrp docker
 # oder neu einloggen
 ```
@@ -34,9 +35,8 @@ newgrp docker
 6. CloudNativePG Operator + Postgres Cluster (25 min)
 7. Q&A / Puffer (10 min)
 
-## Installation k3d (15min) und Cluster erstellen
+## 1) Installation k3d (15min) und Cluster erstellen
 
-## 1) Setup: k3d und kubectl
 
 ### k3d installieren und Cluster erstellen
 
@@ -44,34 +44,18 @@ Wir starten gemeinsam unser erstes Kubernetes Cluster mit k3d (Wrapper um k3s).
 Dann nutzen wir `kubectl` um einen groben Überblick über das erstellte Kubernetes Cluster zu gewinnnen.
 
 ```bash
-# member of docker group?
-groups | grep docker
-
-# add user to docker group
-usermod -a -G docker $USER
-newgrp docker
-
-# is docker service running?
-systemctl status docker
-
 # k3d installation via shell script or see other install methods https://k3d.io/stable/#install-current-latest-release
 curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
 # create default cluster
 k3d cluster create
+k3d cluster ls
 
 ```
 
-## Erste Schritte
+### kubectl installation - first steps
 
-### kubectl (10min)
-
-
-
-Was ist kubectl und wie benutze ich es:
-kubectl get ...
-kubectl api-resources
-kubectl explain
+Was ist [kubectl](https://kubernetes.io/docs/reference/kubectl/)
 
 ```bash
 # install on ubuntu 24.x via
@@ -92,17 +76,24 @@ kubectl get pods --all-namespaces
 alias k=kubectl
 complete -o default -F __start_kubectl k
 
+```
+und wie benutze ich es?
 
+```sh
+kubectl get ?
+kubectl api-resources
+kubectl explain
 ```
 
-### install k9s or openlense or both
+### UI Tools - install k9s or openlense or both
 
 [k9s - tui](https://k9scli.io/topics/install/)
 
 ``` sudo apt install k9s ```
 
 
-[Headlamp]
+[Headlamp - Webinterface]
+
 ```sh
 sudo apt install flatpak
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -126,6 +117,8 @@ Port forward und dann Interaktion mit deployment
 
 ```sh
 k create deployment --image hashicorp/http-echo test
+kubectl rollout status deployment/test
+
 
 k port-forward -n default test-* 5678
 
@@ -143,7 +136,7 @@ k create service test nodeport test --tcp=5678
 
 k get service test
 #note the port >30000
-
+curl ...
 #test connection
 
 #fails in k3d because network is isolated - add nodeport port forward
