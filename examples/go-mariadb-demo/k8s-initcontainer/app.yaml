@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-mariadb-demo-initcontainer
+  labels:
+    app: go-mariadb-demo-initcontainer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-mariadb-demo-initcontainer
+  template:
+    metadata:
+      labels:
+        app: go-mariadb-demo-initcontainer
+    spec:
+      initContainers:
+        - name: db-init-if-empty
+          image: mariadb:11
+          env:
+            - name: DB_HOST
+              value: my-mariadb
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: root
+            - name: DB_PASSWORD
+              value: workshop123
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
+              until mariadb-admin ping \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" \
+                --silent
+              do
+                sleep 2
+              done
+
+              echo "Ensuring schema exists..."
+              mariadb \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" <<'SQL'
+              CREATE DATABASE IF NOT EXISTS workshop;
+              CREATE TABLE IF NOT EXISTS workshop.demo_names (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL,
+                PRIMARY KEY (id)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+              SQL
+
+              row_count="$(mariadb \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" \
+                --silent \
+                --skip-column-names \
+                -e 'SELECT COUNT(*) FROM workshop.demo_names;')"
+
+              if [ "${row_count}" -gt 0 ]; then
+                echo "demo_names already contains ${row_count} rows, skip seed."
+                exit 0
+              fi
+
+              echo "demo_names is empty, inserting seed rows..."
+              mariadb \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" <<'SQL'
+              INSERT INTO workshop.demo_names (name) VALUES
+                ('k8s'),
+                ('kubernetes'),
+                ('k3s'),
+                ('kUbErNeTeZ');
+              SQL
+
+              echo "Seed finished."
+      containers:
+        - name: api
+          image: go-mariadb-demo:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_PORT
+              value: "8080"
+            - name: DB_HOST
+              value: my-mariadb
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: root
+            - name: DB_PASSWORD
+              value: workshop123
+            - name: DB_NAME
+              value: workshop
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-mariadb-demo-initcontainer
+spec:
+  selector:
+    app: go-mariadb-demo-initcontainer
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP

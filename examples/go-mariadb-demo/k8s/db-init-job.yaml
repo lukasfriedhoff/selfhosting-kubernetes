@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: go-mariadb-demo-init
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-init
+          image: mariadb:11
+          env:
+            - name: DB_HOST
+              value: my-mariadb
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: root
+            - name: DB_PASSWORD
+              value: workshop123
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
+              until mariadb-admin ping \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" \
+                --silent
+              do
+                sleep 2
+              done
+
+              echo "Creating schema and seeding demo data..."
+              mariadb \
+                --host="${DB_HOST}" \
+                --port="${DB_PORT}" \
+                --user="${DB_USER}" \
+                --password="${DB_PASSWORD}" <<'SQL'
+              CREATE DATABASE IF NOT EXISTS workshop;
+              USE workshop;
+
+              CREATE TABLE IF NOT EXISTS demo_names (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL,
+                PRIMARY KEY (id)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+              TRUNCATE TABLE demo_names;
+              INSERT INTO demo_names (name) VALUES
+                ('k8s'),
+                ('kubernetes'),
+                ('k3s'),
+                ('kUbErNeTeZ');
+              SQL
+
+              echo "Schema + seed finished"

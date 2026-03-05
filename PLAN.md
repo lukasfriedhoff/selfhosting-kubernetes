@@ -1,4 +1,4 @@
-# WIP: Workshop Overview Selfhosting mit Kubernetes
+# Workshop Overview Selfhosting mit Kubernetes
 
 ## Zielbild
 Nach dem Workshop koennen Teilnehmende:
@@ -172,7 +172,7 @@ k get -o yaml svc test2 > test2.svc.yaml
 #### MariaDB erstellen
 
 ```sh
-helm install my-mariadb oci://registry-1.docker.io/cloudpirates/mariadb
+helm install my-mariadb oci://registry-1.docker.io/cloudpirates/mariadb --set auth.rootPassword=workshop123 --auth.database=workshop
 
 #port forward
 k port-forward my-maridb-0 3306:3306
@@ -192,6 +192,7 @@ helm get values my-maridb
 
 #### Example Go App that connects to db as docker container
 
+[Follow](./examples/go-mariadb-demo/README.md)
 
 ### Beispiel Postgres Cluster mit CNPG Operator (30min)
 
