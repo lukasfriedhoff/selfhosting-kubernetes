@@ -199,7 +199,8 @@ helm get values my-maridb
 #### Was ist ein Operator
 
 Wer macht sowas, was bringt mir das, welche Typen gibt es(BasicInstall, SeamlessUpgrade, FullLifecycle, DeepInsights, AutoPilot)?
-CNPG ist Autopilot. Welche CRDs liefert CNPG, wie verwende ich sie?
+CNPG zeigt sehr gut Seamless Upgrade (Level 2) und starke Automatisierung im Betrieb.
+Welche CRDs liefert CNPG, wie verwende ich sie?
 
 [operatorhub](https://operatorhub.io)
 
@@ -232,10 +233,13 @@ sudo systemctl stop postgresql
 Via cli, unterschied zw. read-only und rw.
 
 ```
-k port-forward -n defaul .?
+k port-forward -n default .?
 psql -h 127.0.0.1 -u app -w
 
 ```
 
-## Puffer fuer Fragen und Details (20min)
+##### Demo: PostgreSQL 17 -> 18 Major Upgrade (Operator-gesteuert)
 
+[Follow](./examples/cnpg-major-upgrade-autopilot/README.md)
+
+## Puffer fuer Fragen und Details (20min)

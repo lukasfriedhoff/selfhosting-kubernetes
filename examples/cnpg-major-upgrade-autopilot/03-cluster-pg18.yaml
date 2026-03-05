@@ -1,0 +1,19 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: workshop-pg
+  namespace: cnpg-upgrade-demo
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-minimal-trixie
+  instances: 3
+  storage:
+    size: 1Gi
+  postgresql:
+    parameters:
+      max_slot_wal_keep_size: "-1"
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret:
+        name: app-user
