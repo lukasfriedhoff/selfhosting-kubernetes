@@ -17,3 +17,5 @@ spec:
       owner: app
       secret:
         name: app-user
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
