@@ -17,8 +17,15 @@ Hinweis zu "Autopilot":
 - `03-cluster-pg18.yaml`
 
 ## Voraussetzung
+- OLM Operator Lifecycle Manager
 - CNPG Operator ist installiert (Namespace `cnpg-system`)
 - Zugriff auf ein Kubernetes Cluster (z. B. k3d)
+
+Falls OLM noch fehlt:
+
+```bash
+curl -sL https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.41.0/install.sh | bash -s v0.41.0
+```
 
 Falls CNPG noch fehlt:
 
@@ -59,7 +66,7 @@ CREATE TABLE IF NOT EXISTS people (
 );
 
 TRUNCATE TABLE people;
-INSERT INTO people (name) VALUES ('Lukas'), ('Mia'), ('Noah');
+INSERT INTO people (name) VALUES ('k8s'), ('kubernetes'), ('kUbErNeTeZ');
 
 SELECT * FROM people ORDER BY id;
 SQL

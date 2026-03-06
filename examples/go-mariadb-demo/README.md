@@ -18,8 +18,7 @@ CloudPirates MariaDB installieren (falls noch nicht vorhanden):
 ```bash
 helm install my-mariadb oci://registry-1.docker.io/cloudpirates/mariadb \
   --set auth.rootPassword=workshop123 \
-  --set auth.database=workshop \
-  --set persistence.enabled=false
+  --set auth.database=workshop
 ```
 
 ```bash

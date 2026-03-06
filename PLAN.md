@@ -88,8 +88,9 @@ kubectl explain
 ### UI Tools - install k9s or openlense or both
 
 [k9s - tui](https://k9scli.io/topics/install/)
+[k9s releases](https://github.com/derailed/k9s/releases)
 
-``` sudo apt install k9s ```
+``` sudo dpkg -i ~/Downloads/k9s_linux_amd64.deb ```
 
 
 [Headlamp - Webinterface]
@@ -102,12 +103,14 @@ flatpak run io.kinvolk.Headlamp
 ```
 
 
-[OpenLens - gui](https://github.com/MuhammedKalkan/OpenLens)
+[FreeLens - gui](https://github.com/freelensapp/freelens/releases)
 
 
 ### Overview Deployment, StatefulSet, DaemonSet
 
 #### Unterschiede Deployment, StatefulSet, DaemonSet (10min)
+
+https://semaphore.io/blog/replicaset-statefulset-daemonset-deployments
 
 #### Deployment erstellen und anlegen (15min)
 
@@ -132,7 +135,7 @@ Typen und Unterschiede zwischen NodePort, ClusterIP und LoadBalancer,...
 Service anlegen und via IP durch Service zum Deployment kommen.
 
 ```sh
-k create service test nodeport test --tcp=5678
+k create service nodeport test --tcp=5678
 
 k get service test
 #note the port >30000
@@ -172,10 +175,10 @@ k get -o yaml svc test2 > test2.svc.yaml
 #### MariaDB erstellen
 
 ```sh
-helm install my-mariadb oci://registry-1.docker.io/cloudpirates/mariadb --set auth.rootPassword=workshop123 --auth.database=workshop
+helm install my-mariadb oci://registry-1.docker.io/cloudpirates/mariadb --set auth.rootPassword=workshop123 --set auth.database=workshop
 
 #port forward
-k port-forward my-maridb-0 3306:3306
+k port-forward my-mariadb-0 3306:3306
 
 #mysql client install
 sudo apt install mysql-client
@@ -185,8 +188,8 @@ mysql -u root -p -h 127.0.0.1
 
 #show helm releases
 helm list
-helm get all my-maridb
-helm get values my-maridb
+helm get all my-mariadb
+helm get values my-mariadb
 
 ```
 
@@ -206,13 +209,6 @@ Welche CRDs liefert CNPG, wie verwende ich sie?
 
 #### CNPG Installieren und Konfigurieren
 
-
-
-Was ist helm, was ist ein helm repo,...?
-CNPG Helm Repo hinzufuegen und CNPG via Helm Release installieren.
-
-
-
 ##### CRD postgresql.cnpg.io/Cluster
 
 Postgres Cluster definieren und deployen durch benutzen der CNPG CRD(anlegen einer CR).
@@ -223,8 +219,7 @@ ro sind alle instanzen die nur lesen koennen
 r ist eine beliebige instanz die lesen kann, also auch der rw master
 
 ```bash
-sudo apt install postgresql
-sudo systemctl stop postgresql
+sudo apt install postgresql-client
 
 ```
 
@@ -233,7 +228,7 @@ sudo systemctl stop postgresql
 Via cli, unterschied zw. read-only und rw.
 
 ```
-k port-forward -n default .?
+k port-forward ...
 psql -h 127.0.0.1 -u app -w
 
 ```
