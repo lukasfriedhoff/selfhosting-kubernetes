@@ -16,18 +16,15 @@ Hinweis zu "Autopilot":
 - `02-cluster-pg17.yaml`
 - `03-cluster-pg18.yaml`
 
-## Voraussetzung
-- OLM Operator Lifecycle Manager
-- CNPG Operator ist installiert (Namespace `cnpg-system`)
-- Zugriff auf ein Kubernetes Cluster (z. B. k3d)
-
-Falls OLM noch fehlt:
+Variante mit OLM:
 
 ```bash
 curl -sL https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.41.0/install.sh | bash -s v0.41.0
+
+kubectl create -f https://operatorhub.io/install/cloudnative-pg.yaml
 ```
 
-Falls CNPG noch fehlt:
+Variante via Helm noch fehlt:
 
 ```bash
 helm repo add cnpg https://cloudnative-pg.github.io/charts
