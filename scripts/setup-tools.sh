@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Workshop-Setup: laedt kubectl, helm, k3d und k9s als Binaries nach
-# ~/.local/bin und richtet Shell-Completions fuer bash und zsh ein.
+# Workshop setup: downloads kubectl, helm, k3d and k9s as binaries into
+# ~/.local/bin and wires up shell completions for bash and zsh.
 #
-# Kein root, kein Paketmanager, kein snap: ein Verzeichnis, vier Binaries,
-# ueberall gleich. Laeuft auf Linux und macOS, amd64 und arm64.
+# No root, no package manager, no snap: one directory, four binaries, the same
+# everywhere. Works on Linux and macOS, amd64 and arm64.
 #
-# Mehrfaches Ausfuehren ist ungefaehrlich (idempotent).
+# Running it more than once is harmless (idempotent).
 #
-#   ./scripts/setup-tools.sh              # installieren
-#   ./scripts/setup-tools.sh --check      # nur pruefen, nichts aendern
-#   ./scripts/setup-tools.sh --latest     # neueste Versionen statt der gepinnten
+#   ./scripts/setup-tools.sh              # install
+#   ./scripts/setup-tools.sh --check      # check only, change nothing
+#   ./scripts/setup-tools.sh --latest     # newest versions instead of the pinned ones
 #
-# Die Versionen sind absichtlich gepinnt: bei einem Workshop mit 12 Leuten
-# willst du, dass alle dasselbe haben, und nicht mitten in der Session
-# feststellen, dass heute morgen ein Major-Release erschienen ist.
+# The versions are pinned on purpose: with twelve people in a room you want
+# everyone on the same build, not to discover mid-session that a major release
+# landed this morning.
 
 set -euo pipefail
 
@@ -62,24 +62,24 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h | --help) usage ;;
-    *) die "unbekannte Option: $1 (--help)" ;;
+    *) die "unknown option: $1 (--help)" ;;
   esac
 done
 
 for c in curl tar uname install grep sed; do
-  command -v "$c" >/dev/null || die "'$c' fehlt - bitte nachinstallieren"
+  command -v "$c" >/dev/null || die "'$c' is missing - please install it"
 done
 if command -v sha256sum >/dev/null; then
   SHA_CMD="sha256sum"
 elif command -v shasum >/dev/null; then
   SHA_CMD="shasum -a 256"
 else
-  die "weder sha256sum noch shasum gefunden"
+  die "neither sha256sum nor shasum found"
 fi
 
-# --- Plattform ----------------------------------------------------------------
-# k9s schreibt das OS gross (k9s_Linux_amd64.tar.gz), alle anderen klein. Genau
-# solche Kleinigkeiten kosten sonst zehn Minuten Fehlersuche.
+# --- Platform ----------------------------------------------------------------
+# k9s capitalises the OS (k9s_Linux_amd64.tar.gz), everything else lowercases it.
+# Exactly the kind of detail that otherwise costs ten minutes of debugging.
 case "$(uname -s)" in
   Linux)
     OS="linux"
@@ -89,16 +89,16 @@ case "$(uname -s)" in
     OS="darwin"
     OS_TITLE="Darwin"
     ;;
-  *) die "nicht unterstuetztes Betriebssystem: $(uname -s)" ;;
+  *) die "unsupported operating system: $(uname -s)" ;;
 esac
 case "$(uname -m)" in
   x86_64 | amd64) ARCH="amd64" ;;
   aarch64 | arm64) ARCH="arm64" ;;
-  *) die "nicht unterstuetzte Architektur: $(uname -m) (nur amd64/arm64)" ;;
+  *) die "unsupported architecture: $(uname -m) (amd64/arm64 only)" ;;
 esac
 
 if [[ "$USE_LATEST" -eq 1 ]]; then
-  log "neueste Versionen ermitteln"
+  log "resolving newest versions"
   gh_latest() {
     curl -fsSL --max-time 20 "https://api.github.com/repos/$1/releases/latest" \
       | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1
@@ -109,26 +109,26 @@ if [[ "$USE_LATEST" -eq 1 ]]; then
   K9S_VERSION="$(gh_latest derailed/k9s)"
 fi
 
-log "Plattform: $OS/$ARCH   Ziel: $BIN_DIR"
+log "platform: $OS/$ARCH   target: $BIN_DIR"
 printf '  kubectl %s | helm %s | k3d %s | k9s %s\n' \
   "$KUBECTL_VERSION" "$HELM_VERSION" "$K3D_VERSION" "$K9S_VERSION"
 
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
-  log "Pruefen (es wird nichts geaendert)"
+  log "checking (nothing is changed)"
   rc=0
   for t in docker kubectl helm k3d k9s; do
     if command -v "$t" >/dev/null; then
       ok "$t -> $(command -v "$t")"
     else
-      warn "$t fehlt"
+      warn "$t is missing"
       [[ "$t" == docker ]] && rc=1
     fi
   done
   if command -v docker >/dev/null; then
     if docker info >/dev/null 2>&1; then
-      ok "docker laeuft und ist nutzbar"
+      ok "docker is running and usable"
     else
-      warn "docker antwortet nicht - laeuft der Daemon, und bist du in der Gruppe 'docker'?"
+      warn "docker does not answer - is the daemon running, and are you in the 'docker' group?"
       rc=1
     fi
   fi
@@ -136,22 +136,22 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
 fi
 
 command -v docker >/dev/null \
-  || warn "docker nicht gefunden - k3d braucht eine laufende Container-Runtime"
+  || warn "docker not found - k3d needs a running container runtime"
 
 mkdir -p "$BIN_DIR" "$BASH_COMP_DIR" "$ZSH_COMP_DIR"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Laedt $1 nach $2 und prueft gegen die erwartete Summe $3.
+# Downloads $1 to $2 and checks it against the expected sum $3.
 fetch_verify() {
   local url="$1" out="$2" want="$3" got
   curl -fsSL --retry 3 --retry-delay 2 --max-time 300 -o "$out" "$url" \
-    || die "Download fehlgeschlagen: $url"
+    || die "download failed: $url"
   got="$($SHA_CMD "$out" | awk '{print $1}')"
   [[ "$got" == "$want" ]] \
-    || die "Checksumme falsch fuer $(basename "$out")
-  erwartet: $want
-  bekommen: $got"
+    || die "checksum mismatch for $(basename "$out")
+  expected: $want
+  got:      $got"
 }
 
 # --- kubectl ------------------------------------------------------------------
@@ -172,13 +172,13 @@ install -m 0755 "$TMP/${OS}-${ARCH}/helm" "$BIN_DIR/helm"
 ok "$BIN_DIR/helm"
 
 # --- k3d ----------------------------------------------------------------------
-# k3d veroeffentlicht keine Checksummen-Datei pro Asset, deshalb hier nur der
-# Download - dafuer ueber https von GitHub Releases.
+# k3d publishes no per-asset checksum file, so this is download only - but over
+# https from GitHub Releases.
 log "k3d $K3D_VERSION"
 curl -fsSL --retry 3 --max-time 300 \
   -o "$TMP/k3d" \
   "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-${OS}-${ARCH}" \
-  || die "k3d-Download fehlgeschlagen"
+  || die "k3d download failed"
 install -m 0755 "$TMP/k3d" "$BIN_DIR/k3d"
 ok "$BIN_DIR/k3d"
 
@@ -190,7 +190,7 @@ want="$(
     "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/checksums.sha256" \
     | grep " \+${k9s_tgz}\$" | awk '{print $1}' | head -1
 )"
-[[ -n "$want" ]] || die "keine Checksumme fuer $k9s_tgz gefunden"
+[[ -n "$want" ]] || die "no checksum found for $k9s_tgz"
 fetch_verify \
   "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/${k9s_tgz}" \
   "$TMP/$k9s_tgz" "$want"
@@ -199,9 +199,9 @@ install -m 0755 "$TMP/k9s" "$BIN_DIR/k9s"
 ok "$BIN_DIR/k9s"
 
 # --- Completions --------------------------------------------------------------
-# Erst jetzt, mit den frisch installierten Binaries - sonst generiert eine alte
-# Version im PATH die Completion.
-log "Completions erzeugen"
+# Only now, with the freshly installed binaries - otherwise an older version
+# already on PATH generates the completion.
+log "generating completions"
 export PATH="$BIN_DIR:$PATH"
 
 gen() {
@@ -216,16 +216,16 @@ gen() {
 for tool in kubectl helm k3d k9s; do
   gen "$tool" bash "$BASH_COMP_DIR/$tool" \
     && ok "bash: $tool" \
-    || warn "bash-Completion fuer $tool fehlgeschlagen"
-  # zsh erwartet den Dateinamen _<tool> im fpath.
+    || warn "bash completion for $tool failed"
+  # zsh expects the filename _<tool> on the fpath.
   gen "$tool" zsh "$ZSH_COMP_DIR/_$tool" \
     && ok "zsh:  $tool" \
-    || warn "zsh-Completion fuer $tool fehlgeschlagen"
+    || warn "zsh completion for $tool failed"
 done
 
-# --- Shell-Konfiguration ------------------------------------------------------
-# In einen markierten Block schreiben, damit ein zweiter Lauf ihn ersetzt statt
-# ihn ein zweites Mal anzuhaengen.
+# --- Shell configuration ------------------------------------------------------
+# Write into a marked block so a second run replaces it instead of appending it
+# a second time.
 write_block() {
   local rc="$1" shell="$2" tmp
   [[ -e "$rc" ]] || touch "$rc"
@@ -239,8 +239,8 @@ write_block() {
 export XDG_DATA_DIRS="$PREFIX/share:\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 for _f in "$BASH_COMP_DIR"/*; do [ -r "\$_f" ] && . "\$_f"; done; unset _f
 alias k=kubectl
-# Die Completion der Abkuerzung braucht die kubectl-Completion davor, sonst
-# scheitert sie mit "__start_kubectl: function not found".
+# The alias completion needs the kubectl completion loaded first, otherwise it
+# fails with "__start_kubectl: function not found".
 complete -o default -F __start_kubectl k 2>/dev/null || true
 EOF
     else
@@ -254,16 +254,16 @@ EOF
     printf '%s\n' "$MARKER_END"
   } >>"$tmp"
   mv "$tmp" "$rc"
-  ok "$rc aktualisiert"
+  ok "$rc updated"
 }
 
-log "Shell-Konfiguration"
+log "shell configuration"
 write_block "$HOME/.bashrc" bash
 [[ -n "${ZSH_VERSION:-}" || -e "$HOME/.zshrc" || "$(basename "${SHELL:-}")" == zsh ]] \
   && write_block "$HOME/.zshrc" zsh
 
-# --- Abschluss ----------------------------------------------------------------
-log "Versionen"
+# --- Wrap up ----------------------------------------------------------------
+log "versions"
 "$BIN_DIR/kubectl" version --client 2>/dev/null | head -1 | sed 's/^/  /'
 "$BIN_DIR/helm" version --short 2>/dev/null | sed 's/^/  helm /'
 "$BIN_DIR/k3d" version 2>/dev/null | head -1 | sed 's/^/  /'
@@ -271,17 +271,17 @@ log "Versionen"
 
 cat <<EOF
 
-${c_ok}Fertig.${c_off} Neue Shell oeffnen oder:
+${c_ok}Done.${c_off} Open a new shell, or:
 
-    source ~/.bashrc      # bzw. ~/.zshrc
+    source ~/.bashrc      # or ~/.zshrc
 
-Danach pruefen:
+Then check:
 
     ./scripts/setup-tools.sh --check
 
-Und dann das Cluster bauen (machen wir gemeinsam). Der Host-Port steckt in einer
-Variablen, damit ihn niemand spaeter in fuenf Befehlen suchen muss - wenn 8080
-bei dir belegt ist, nimm hier 18080 und sonst nichts aendern:
+And then build the cluster (we do this together). The host port lives in a
+variable so nobody has to hunt for it in five later commands - if 8080 is taken
+on your machine, put 18080 here and change nothing else:
 
     export WS_PORT=8080
     k3d cluster create homelab \\

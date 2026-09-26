@@ -1,92 +1,83 @@
-# Workshop 45 min: Selfhosting mit Kubernetes
+# Workshop 45 min: Selfhosting with Kubernetes
 
-Trainer-Skript fuer eine 45-Minuten-Session mit ca. 12 Teilnehmenden.
-Langfassung (2 h, mit Helm, MariaDB und CloudNativePG): [PLAN.md](./PLAN.md).
+Trainer script for a 45-minute session with about 12 participants.
+Long version (2 h, with Helm, MariaDB and CloudNativePG): [PLAN.md](./PLAN.md).
 
-Zielgruppe: kennt Docker und ein Terminal, will Dienste zuhause betreiben, sie im LAN
-erreichen und keine Daten verlieren. Kein CKA, keine Operator-Capability-Levels.
-
-**Der Satz, der haengen bleiben soll:**
-> Der Pod ist Wegwerfware. Service, Ingress und PVC sind es nicht — deshalb funktioniert das Ganze.
-
-**45 min sind Wall Clock, Setup inklusive.** Das Cluster wird gemeinsam in der Session gebaut;
-es gibt keine Hausaufgabe und kein "docker pull vor der Anreise". Der Preis dafuer steht im
-Budget unten: vierzehn Minuten. Wer hinterherhinkt, arbeitet den [Kuerzungsplan](#kuerzungsplan) ab —
-in genau dieser Reihenfolge.
+Target audience: knows Docker and a terminal, wants to run services at home, reach them on the
+LAN and not lose any data. No CKA, no operator capability levels.
 
 ---
 
-## Minutenbudget
+## Minute budget
 
-| min | Block | Wer tippt |
+| min | Block | Who types |
 |---:|---|---|
-| 0–2 | [Rahmen: Nextcloud ist das Ziel](#02-min--rahmen-nextcloud-ist-das-ziel) | niemand |
-| 2–16 | [Setup gemeinsam: Werkzeuge, Cluster, Uptime Kuma sofort starten](#216-min--setup-gemeinsam) | alle |
-| 16–24 | [Deployment: der Pod ist Wegwerfware](#1624-min--deployment-der-pod-ist-wegwerfware) | alle |
-| 24–34 | [Service und Ingress: eine Adresse, zwei Dienste](#2434-min--service-und-ingress-eine-adresse-zwei-dienste) | alle + 1 Trainer-Demo |
-| 34–42 | [Persistenz: der Pod stirbt, die Daten nicht](#3442-min--persistenz-der-pod-stirbt-die-daten-nicht) | alle |
-| 42–45 | [Wie geht es weiter + Q&A](#4245-min--wie-geht-es-weiter) | niemand |
+| 0–2 | [Framing: Nextcloud is the goal](#02-min--framing-nextcloud-is-the-goal) | nobody |
+| 2–16 | [Setup together: tools, cluster, start Uptime Kuma right away](#216-min--setup-together) | everyone |
+| 16–24 | [Deployment: the pod is disposable](#1624-min--deployment-the-pod-is-disposable) | everyone |
+| 24–34 | [Service and Ingress: one address, two services](#2434-min--service-and-ingress-one-address-two-services) | everyone + 1 trainer demo |
+| 34–42 | [Persistence: the pod dies, the data does not](#3442-min--persistence-the-pod-dies-the-data-does-not) | everyone |
+| 42–45 | [Where to go next + Q&A](#4245-min--where-to-go-next) | nobody |
 
-Summe: 2 + 14 + 8 + 10 + 8 + 3 = **45**. Fragen werden **im Block** beantwortet, nicht gesammelt —
-dafuer ist der Wrap kurz.
+Total: 2 + 14 + 8 + 10 + 8 + 3 = **45**. Questions get answered **inside the block**, not
+collected — that is why the wrap-up is short.
 
-Faustregel fuer den Trainer: **zwei Saetze pro Begriff, dann weiter.** Jeder Block hat unten eine
-Tabelle *Symptom → Ursache → Fix*. Wenn eine Meldung nicht drinsteht, ist sie ein Q&A nach der
-Session, kein Live-Debugging.
-
----
-
-## Voraussetzungen
-
-**Eine laufende Docker Engine, die der eigene User benutzen darf.** Docker Desktop zaehlt.
-Das ist alles.
-
-Werkzeuge werden in der Session installiert: `scripts/setup-tools.sh` legt `kubectl`, `helm`,
-`k3d` und `k9s` als Binaries in `~/.local/bin` und richtet Completions fuer bash und zsh ein.
-Kein root, kein Paketmanager, kein snap.
+Rule of thumb for the trainer: **two sentences per term, then move on.** Every block ends with a
+*Symptom → Cause → Fix* table. If a message is not in it, it is a Q&A after the session, not live
+debugging.
 
 ---
 
-## 0–2 min — Rahmen: Nextcloud ist das Ziel
+## Prerequisites
 
-**Trainer redet, niemand tippt.**
+**A running Docker engine that your own user is allowed to use.** Docker Desktop counts.
+That is all.
 
-> Das Ziel, mit dem die meisten hier sitzen, heisst **Nextcloud im eigenen Netz**: eigene Dateien,
-> eigener Kalender, eigene Adresse mit HTTPS. Wir installieren es heute bewusst *nicht* —
-> `nextcloud:31-apache` sind 461 MB, dazu eine Postgres-Datenbank mit 112 MB, ein Secret, ein PVC
-> und eine Erstinstallation, die minutenlang laeuft. Das frisst die Session und versteckt genau
-> die Objekte, um die es geht. Nextcloud besteht naemlich aus vier Bausteinen, und die bauen wir
-> heute an einem Dienst, der in Sekunden startet. Am Ende steht Nextcloud als Schritt 1 auf dem
-> Zettel — und dann kannst du jede Zeile davon lesen.
+Tools get installed during the session: `scripts/setup-tools.sh` drops `kubectl`, `helm`,
+`k3d` and `k9s` as binaries into `~/.local/bin` and sets up completions for bash and zsh.
+No root, no package manager, no snap.
 
-Warum nicht `docker compose`? Compose kann genau eine Sache nicht: den Zustand
-wiederherstellen, den du wolltest. Kubernetes ist ein Regelkreis — du beschreibst den
-Soll-Zustand, das Cluster haelt ihn.
+---
 
-Vokabular, 30 Sekunden, nicht mehr:
+## 0–2 min — Framing: Nextcloud is the goal
 
-| Objekt | In einem Satz |
+**Trainer talks, nobody types.**
+
+> The goal most people here are sitting with is **Nextcloud on your own network**: your own files,
+> your own calendar, your own address with HTTPS. We are deliberately *not* installing it today —
+> `nextcloud:31-apache` is 461 MB, plus a Postgres database at 112 MB, a Secret, a PVC and a
+> first-run install that takes minutes. That eats the session and hides exactly the objects this
+> is about. Nextcloud is made of four building blocks, and today we build those on a service that
+> starts in seconds. At the end Nextcloud is step 1 on your list — and then you can read every
+> line of it.
+
+Why not `docker compose`? There is exactly one thing Compose cannot do: restore the state you
+asked for. Kubernetes is a control loop — you describe the desired state, the cluster holds it.
+
+Vocabulary, 30 seconds, no more:
+
+| Object | In one sentence |
 |---|---|
-| **Pod** | ein oder mehrere Container, kurzlebig, ersetzbar |
-| **Deployment** | "halte n Pods von diesem Image am Leben" |
-| **Service** | stabiler Name und stabile IP vor wechselnden Pods |
-| **Ingress** | HTTP-Router von aussen nach innen, nach Hostname |
-| **PVC** | angeforderter Speicher, ueberlebt den Pod |
+| **Pod** | one or more containers, short-lived, replaceable |
+| **Deployment** | "keep n pods of this image alive" |
+| **Service** | stable name and stable IP in front of changing pods |
+| **Ingress** | HTTP router from outside to inside, by hostname |
+| **PVC** | requested storage, outlives the pod |
 
-Am Ende der Session laufen zwei Dienste unter zwei Hostnamen auf **einem** Port, und einer von
-beiden hat Daten, die einen Pod-Tod ueberleben.
+By the end of the session two services run under two hostnames on **one** port, and one of them
+has data that survives the death of a pod.
 
 ---
 
-## 2–16 min — Setup gemeinsam
+## 2–16 min — Setup together
 
-**Alle tippen.** Ziel: jeder hat ein Cluster, und der 149-MB-Download laeuft im Hintergrund,
-bevor wir mit dem Erklaeren anfangen.
+**Everyone types.** Goal: everyone has a cluster, and the 149 MB download is running in the
+background before we start explaining.
 
-**Das Budget ist 14 Minuten, und es ist knapp, nicht grosszuegig:** 2–3 min Werkzeuge,
-**1–4 min Cluster**, ~1 min Kuma und Nachschauen, der Rest ist Puffer fuer die zwei bis drei
-Leute, bei denen Docker streikt. Wer hier 16 Minuten braucht, streicht spaeter nach
-[Kuerzungsplan](#kuerzungsplan) — das ist eingeplant, kein Scheitern.
+**The budget is 14 minutes, and it is tight, not generous:** 2–3 min tools,
+**1–4 min cluster**, ~1 min Kuma and a look at it, the rest is slack for the two or three
+people whose Docker refuses. If you need 16 minutes here, cut later per the
+[cut list](#cut-list) — that is planned for, not failure.
 
 ```bash
 git clone https://github.com/lukasfriedhoff/selfhosting-kubernetes.git
@@ -94,213 +85,213 @@ cd selfhosting-kubernetes
 ./scripts/setup-tools.sh
 ```
 
-Ohne `git`:
+Without `git`:
 
 ```bash
 curl -fsSL https://github.com/lukasfriedhoff/selfhosting-kubernetes/archive/HEAD.tar.gz | tar xz
 cd selfhosting-kubernetes-*
 ```
 
-Der Lauf dauert 2–3 Minuten (vier Downloads, ~135 MB, mit Checksummen-Pruefung). Danach Shell neu
-laden und selbst pruefen:
+The run takes 2–3 minutes (four downloads, ~135 MB, with checksum verification). Then reload the
+shell and check for yourself:
 
 ```bash
-source ~/.bashrc      # zsh: source ~/.zshrc - oder einfach einen neuen Tab oeffnen
+source ~/.bashrc      # zsh: source ~/.zshrc - or just open a new tab
 ./scripts/setup-tools.sh --check
 ```
 
-**Zu sehen:** fuenf gruene `ok`-Zeilen (`docker`, `kubectl`, `helm`, `k3d`, `k9s`) und
-`ok docker laeuft und ist nutzbar`. Exit-Code 0.
+**Expect to see:** five green `ok` lines (`docker`, `kubectl`, `helm`, `k3d`, `k9s`) and
+`ok docker is running and usable`. Exit code 0.
 
-### Ein Name fuer den Host-Port: `WS_PORT`
+### A name for the host port: `WS_PORT`
 
-Alles, was spaeter von aussen ins Cluster geht, benutzt **diese eine Variable**. Einmal setzen,
-jetzt, alle zusammen — dann gibt es im ganzen Rest der Session kein Suchen-und-Ersetzen:
+Everything that later goes into the cluster from outside uses **this one variable**. Set it once,
+now, all together — then there is no search-and-replace for the rest of the session:
 
 ```bash
 export WS_PORT=8080
 ```
 
-**Ist 8080 auf deinem Rechner belegt** (haeufig: Jenkins, Tomcat, ein anderes Docker-Projekt),
-dann **jetzt** `export WS_PORT=18080` — oder 28080, egal — und weiter wie alle anderen. Ab hier
-steht in jedem Befehl `$WS_PORT` und nie wieder eine Zahl. Zwei Dinge dazu:
+**If 8080 is taken on your machine** (common: Jenkins, Tomcat, another Docker project), then
+**now** `export WS_PORT=18080` — or 28080, does not matter — and carry on like everyone else.
+From here on every command says `$WS_PORT` and never a number again. Two things about that:
 
-- Die Variable lebt in **dieser** Shell. Neuer Tab? `export WS_PORT=...` erneut, oder gleich
+- The variable lives in **this** shell. New tab? `export WS_PORT=...` again, or just
   `echo 'export WS_PORT=8080' >> ~/.bashrc`.
-- Der **Browser** kann keine Variable. Wenn wir spaeter eine URL eintippen, liefert
-  `echo $WS_PORT` die Zahl, die dort hingehoert.
+- The **browser** does not do variables. When we type a URL later, `echo $WS_PORT` gives you the
+  number that belongs there.
 
 ### Cluster
 
-Jetzt das Cluster — eine Zeile, absichtlich ohne Zeilenumbrueche:
+Now the cluster — one line, deliberately without line breaks:
 
 ```bash
 k3d cluster create homelab --image rancher/k3s:v1.36.4-k3s1 -p "${WS_PORT}:80@loadbalancer"
 ```
 
-**Das dauert 1–4 Minuten, nicht 20 Sekunden.** Der Befehl zieht zuerst das k3s-Node-Image
-(`rancher/k3s`, mit dem k3d-Proxy zusammen ~95 MB) und startet danach erst das Cluster. Die
-"17–40 Sekunden", die man in Blogposts und in meinen eigenen Testlaeufen liest, gelten fuer einen
-**warmen Docker-Cache** — den hat hier niemand. Zwoelf Leute, ein WLAN: vier Minuten sind normal.
+**This takes 1–4 minutes, not 20 seconds.** The command first pulls the k3s node image
+(`rancher/k3s`, ~95 MB together with the k3d proxy) and only then starts the cluster. The
+"17–40 seconds" you read in blog posts and in my own test runs are for a **warm Docker cache** —
+nobody here has one. Twelve people, one wifi: four minutes is normal.
 
-**Zu sehen:** zuletzt `Cluster 'homelab' created successfully!`.
+**Expect to see:** last line `Cluster 'homelab' created successfully!`.
 
 ```bash
 kubectl get nodes
 ```
 
-**Zu sehen:** eine Zeile, `Ready`, `control-plane`, Version `v1.36.4+k3s1`.
+**Expect to see:** one line, `Ready`, `control-plane`, version `v1.36.4+k3s1`.
 
-### Und sofort Uptime Kuma starten
+### And start Uptime Kuma right away
 
-Ohne Pause, der wichtigste Befehl des Setups:
+No pause, the most important command of the setup:
 
 ```bash
 kubectl apply -f manifests/10-uptime-kuma.yaml
 kubectl get pvc
 ```
 
-**Zu sehen:** vier Zeilen `created` — und beim PVC:
+**Expect to see:** four `created` lines — and for the PVC:
 
 ```
 NAME        STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
 kuma-data   Pending                                      local-path     <unset>                 1s
 ```
 
-`Pending` ist **richtig**, nicht kaputt: `local-path` benutzt
-`volumeBindingMode: WaitForFirstConsumer`, das Volume entsteht erst, wenn klar ist, auf welchem
-Node der Pod laeuft. In zehn Sekunden steht dort `Bound`.
+`Pending` is **correct**, not broken: `local-path` uses
+`volumeBindingMode: WaitForFirstConsumer`, the volume is only created once it is clear which node
+the pod runs on. In ten seconds it will say `Bound`.
 
-**Trainer sagt jetzt den Satz, der die naechsten achtzehn Minuten kauft:**
-"Ab hier laedt im Hintergrund ein 149-MB-Image. Das ist Absicht. Wir reden weiter, und wenn wir
-in Minute 32 zurueckkommen, ist es da."
+**The trainer now says the sentence that buys the next eighteen minutes:**
+"From here on a 149 MB image is downloading in the background. That is on purpose. We keep
+talking, and when we come back in minute 32, it is there."
 
-### Symptom → Ursache → Fix
+### Symptom → Cause → Fix
 
-| Symptom | Ursache | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `permission denied ... /var/run/docker.sock` | User nicht in Gruppe `docker` | `sudo usermod -aG docker "$USER"`, **abmelden und neu anmelden**. Live: neben jemanden setzen, nicht debuggen |
-| `k3d: command not found` nach dem Setup | Shell nicht neu geladen | `source ~/.bashrc` bzw. neuer Tab |
-| `port is already allocated` bei `cluster create` | Host-Port belegt | `export WS_PORT=18080`, dann `cluster create` erneut. Nur diese eine Stelle, alles Weitere benutzt `$WS_PORT` |
-| spaeter `connection refused` auf `127.0.0.1:$WS_PORT` | `WS_PORT` in einem neuen Tab nicht gesetzt (ist dann leer) | `echo $WS_PORT` — leer? `export WS_PORT=...` mit dem Wert, mit dem das Cluster angelegt wurde. Zur Not `docker ps \| grep serverlb` zeigt die Zahl |
-| `cluster create` haengt Minuten bei `Starting new tools node` | genau der beschriebene Image-Pull | erwartet, weiterreden. `docker pull rancher/k3s:v1.36.4-k3s1` in einem zweiten Tab zeigt den Fortschritt |
-| Cluster existiert schon (`failed to create cluster`) | Rest aus einem frueheren Versuch | `k3d cluster delete homelab` und neu |
-| `kubectl get nodes` zeigt `v1.21.x` | k3d **<= 5.8.3** faellt auf einen hartcodierten k3s-Stand von 2021 zurueck, wenn der Lookup auf `update.k3s.io` scheitert (Konferenz-WLAN!) | genau darum sind k3d v5.9.0 (via Setup-Skript) **und** `--image rancher/k3s:v1.36.4-k3s1` gepinnt. Mit dem `--image`-Flag kann es nicht passieren |
-| `kubectl apply` sagt `no such file or directory` | falsches Verzeichnis | `cd` ins geklonte Repo; `ls manifests/` muss zwei `.yaml` zeigen |
-| `error: You must be logged in to the server` | kubeconfig zeigt auf ein fremdes Cluster | `kubectl config use-context k3d-homelab` |
+| `permission denied ... /var/run/docker.sock` | user not in the `docker` group | `sudo usermod -aG docker "$USER"`, **log out and log back in**. Live: sit next to someone, do not debug |
+| `k3d: command not found` after the setup | shell not reloaded | `source ~/.bashrc` or a new tab |
+| `port is already allocated` on `cluster create` | host port taken | `export WS_PORT=18080`, then `cluster create` again. Only this one spot, everything else uses `$WS_PORT` |
+| later `connection refused` on `127.0.0.1:$WS_PORT` | `WS_PORT` not set in a new tab (so it is empty) | `echo $WS_PORT` — empty? `export WS_PORT=...` with the value the cluster was created with. Worst case, `docker ps \| grep serverlb` shows the number |
+| `cluster create` hangs for minutes at `Starting new tools node` | exactly the image pull described above | expected, keep talking. `docker pull rancher/k3s:v1.36.4-k3s1` in a second tab shows the progress |
+| cluster already exists (`failed to create cluster`) | leftovers from an earlier attempt | `k3d cluster delete homelab` and start over |
+| `kubectl get nodes` shows `v1.21.x` | k3d **<= 5.8.3** falls back to a hardcoded k3s version from 2021 when the lookup on `update.k3s.io` fails (conference wifi!) | that is exactly why k3d v5.9.0 (via the setup script) **and** `--image rancher/k3s:v1.36.4-k3s1` are pinned. With the `--image` flag it cannot happen |
+| `kubectl apply` says `no such file or directory` | wrong directory | `cd` into the cloned repo; `ls manifests/` must show two `.yaml` files |
+| `error: You must be logged in to the server` | kubeconfig points at a different cluster | `kubectl config use-context k3d-homelab` |
 
 ---
 
-## 16–24 min — Deployment: der Pod ist Wegwerfware
+## 16–24 min — Deployment: the pod is disposable
 
-**Ziel in einem Satz:** zeigen, dass ein geloeschter Pod von allein zurueckkommt — der eine
-Unterschied zu `docker run`, an dem alles haengt.
+**Goal in one sentence:** show that a deleted pod comes back on its own — the one difference from
+`docker run` that everything hangs on.
 
-**Alle tippen.**
+**Everyone types.**
 
 ```bash
 kubectl create deployment web --image traefik/whoami:v1.12.0
 kubectl get pods -l app=web
 ```
 
-`traefik/whoami` sind 5 MB und starten sofort — deshalb ist das hier und nicht Kuma der Dienst
-zum Herumspielen. Der Tag ist gepinnt: bei `:latest` setzt Kubernetes `imagePullPolicy: Always`
-und zieht bei jedem Start neu.
+`traefik/whoami` is 5 MB and starts instantly — that is why this, and not Kuma, is the service to
+play with. The tag is pinned: with `:latest` Kubernetes sets `imagePullPolicy: Always` and pulls
+again on every start.
 
-Und jetzt der Moment, fuer den die Leute gekommen sind:
+And now the moment people came for:
 
 ```bash
 kubectl delete pod -l app=web
 kubectl get pods -l app=web
 ```
 
-**Zu sehen:** `pod "web-85875947cf-4nldt" deleted from default namespace`, und direkt danach ein
-Pod mit **neuem Namen**
-und `AGE 1s`. Zwischen den beiden Befehlen liegt ungefaehr eine Sekunde.
+**Expect to see:** `pod "web-85875947cf-4nldt" deleted from default namespace`, and right after it
+a pod with a **new name**
+and `AGE 1s`. About one second passes between the two commands.
 
-> **Das ist der Unterschied zu `docker run`.** Du hast den Pod nicht verloren, du hast ihn ersetzt
-> bekommen. Geloescht hast du eine Instanz eines Wunsches, nicht den Wunsch selbst. Der Wunsch
-> heisst Deployment.
+> **This is the difference from `docker run`.** You did not lose the pod, you got it replaced.
+> What you deleted was one instance of a wish, not the wish itself. The wish is called
+> Deployment.
 
-Diagnose-Handwerkszeug, in dieser Reihenfolge — das sind die Befehle, die zuhause 90 % aller
-Fragen beantworten:
+Diagnostic tooling, in this order — these are the commands that answer 90 % of all questions at
+home:
 
 ```bash
 kubectl logs deploy/web
 kubectl describe deploy/web
 ```
 
-**Zu sehen:** bei `logs` eine Zeile `Starting up on port 80`; bei `describe` ganz unten
-`Events:` mit `ScalingReplicaSet`. **Immer zuerst die Events lesen, nicht die Logs.**
+**Expect to see:** for `logs` one line `Starting up on port 80`; for `describe` at the very bottom
+`Events:` with `ScalingReplicaSet`. **Always read the events first, not the logs.**
 
-> **Stolperfalle, die jeder trifft: `exec` braucht eine Shell im Image.**
-> `kubectl exec -it deploy/web -- sh` scheitert mit
-> `exec: "sh": executable file not found in $PATH`. `traefik/whoami` ist 5 MB und hat keine Shell
-> — wie fast alle modernen Images (distroless). Der Ausweg ist ein Wegwerf-Pod, und den zeigt
-> gleich der Trainer.
+> **The trap everybody hits: `exec` needs a shell in the image.**
+> `kubectl exec -it deploy/web -- sh` fails with
+> `exec: "sh": executable file not found in $PATH`. `traefik/whoami` is 5 MB and has no shell
+> — like almost all modern images (distroless). The way out is a throwaway pod, and the trainer
+> shows that in a moment.
 
-**Trainer-Demo, 30 Sekunden, sonst nichts:** `k9s` starten, `:pods` eintippen, `l` fuer Logs,
-`d` fuer describe, `Esc`, dann `:q`. Kein Lernziel — nur damit alle wissen, dass es existiert und
-dass `describe` und `logs` darin zwei Tastendruecke sind. Das ist der erste Punkt auf dem
-[Kuerzungsplan](#kuerzungsplan).
+**Trainer demo, 30 seconds, nothing else:** start `k9s`, type `:pods`, `l` for logs,
+`d` for describe, `Esc`, then `:q`. No learning objective — just so everyone knows it exists and
+that `describe` and `logs` are two keystrokes in it. This is the first item on the
+[cut list](#cut-list).
 
-### Symptom → Ursache → Fix
+### Symptom → Cause → Fix
 
-| Symptom | Ursache | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `ImagePullBackOff` bei `web` | Tippfehler im Image oder kein Netz | `kubectl describe pod -l app=web \| tail -5`. Notausgang: `kubectl delete deploy web` und `kubectl apply -f manifests/20-whoami.yaml` |
-| `kubectl get pods` zeigt nach dem Delete **zwei** `web`-Pods | der alte terminiert noch | eine Sekunde warten, nochmal schauen. Genau deshalb steht hier `-l app=web` und kein Pod-Name |
-| `error: name cannot be provided when a selector is specified` | `-l` und Pod-Name gemischt | eins von beiden, nie beides |
-| `deployments.apps "web" already exists` | Block schon einmal gelaufen | `kubectl delete deploy web` oder einfach weitermachen |
+| `ImagePullBackOff` on `web` | typo in the image or no network | `kubectl describe pod -l app=web \| tail -5`. Emergency exit: `kubectl delete deploy web` and `kubectl apply -f manifests/20-whoami.yaml` |
+| `kubectl get pods` shows **two** `web` pods after the delete | the old one is still terminating | wait a second, look again. That is exactly why it says `-l app=web` here and not a pod name |
+| `error: name cannot be provided when a selector is specified` | `-l` and a pod name mixed | one or the other, never both |
+| `deployments.apps "web" already exists` | block already ran once | `kubectl delete deploy web`, or just carry on |
 
 ---
 
-## 24–34 min — Service und Ingress: eine Adresse, zwei Dienste
+## 24–34 min — Service and Ingress: one address, two services
 
-**Ziel in einem Satz:** ein Service ist ein DNS-Name plus eine Liste von Endpoints, ein Ingress
-ist ein Router davor — und am Ende laufen zwei Dienste auf **einem** Port, unterschieden allein
-durch den Hostnamen. Das ist der Homelab-Moment.
+**Goal in one sentence:** a Service is a DNS name plus a list of endpoints, an Ingress is a router
+in front of it — and at the end two services run on **one** port, told apart by nothing but the
+hostname. That is the homelab moment.
 
-Zehn Minuten, zwei Haelften, kein Luftholen dazwischen.
+Ten minutes, two halves, no pause for breath in between.
 
-### Teil 1: der Service — Name statt IP
+### Part 1: the Service — a name instead of an IP
 
-**Alle tippen:**
+**Everyone types:**
 
 ```bash
 kubectl expose deployment web --port 80
 kubectl describe svc web
 ```
 
-**Zu sehen** — es zaehlen genau zwei Zeilen:
+**Expect to see** — exactly two lines matter:
 
 ```
 Selector:                 app=web
 Endpoints:                10.42.0.12:80
 ```
 
-`Selector` sagt, welche Pods gemeint sind. `Endpoints` sagt, welche es tatsaechlich gibt.
+`Selector` says which pods are meant. `Endpoints` says which ones actually exist.
 
-> **Die Regel fuers Homelab, einmal gesagt und nie vorgefuehrt:** Dienst nicht erreichbar →
-> `kubectl describe svc <name>` → ist `Endpoints` **leer**, ist es *immer* der Selector oder ein
-> nicht laufender Pod. **Nie** das Netzwerk. (Die haeufigste Quelle dafuer:
-> `kubectl create service` leitet den Selector vom **Service-Namen** ab, `kubectl expose` vom
-> **Workload**.)
+> **The homelab rule, said once and never demoed:** service unreachable →
+> `kubectl describe svc <name>` → if `Endpoints` is **empty**, it is *always* the selector or a
+> pod that is not running. **Never** the network. (The most common source of that:
+> `kubectl create service` derives the selector from the **service name**, `kubectl expose` from
+> the **workload**.)
 
-Dass `http://web` und `http://kuma` als Adressen funktionieren, kommt von **coredns** — dem
-cluster-internen DNS, der seit Minute 2 in `kube-system` mitlaeuft, ohne dass wir ihn
-installiert haetten.
+That `http://web` and `http://kuma` work as addresses comes from **coredns** — the
+cluster-internal DNS that has been running in `kube-system` since minute 2, without us
+installing it.
 
-#### Trainer-Demo: der Wegwerf-Pod (Projektor, NICHT alle)
+#### Trainer demo: the throwaway pod (projector, NOT everyone)
 
-**Bewusst nur der Trainer.** Zwoelf Leute in einer interaktiven Shell heisst: zwoelf Leute
-vergessen `exit`, und beim zweiten Versuch kommt `pods "tmp" already exists`.
+**Deliberately the trainer only.** Twelve people in an interactive shell means: twelve people
+forget `exit`, and the second attempt gets `pods "tmp" already exists`.
 
 ```bash
 kubectl run tmp -it --rm --image alpine:3 -- sh
 ```
 
-Im Pod:
+Inside the pod:
 
 ```sh
 getent hosts web
@@ -309,147 +300,146 @@ wget -qO- http://kuma
 exit
 ```
 
-**Zu sehen:** `getent` liefert `10.43.104.214 web.default.svc.cluster.local ... web` — der Name
-existiert cluster-intern. `wget http://web` liefert den whoami-Dump inklusive
-`Hostname: web-...`. Und `http://kuma` antwortet mit `302 Found, Location: /dashboard` —
-das Image ist also fertig geladen, ohne dass wir es angeschaut haben. Kommt hier nichts, zieht
-Kuma noch; dafuer steht weiter unten ein explizites `kubectl wait`.
+**Expect to see:** `getent` returns `10.43.104.214 web.default.svc.cluster.local ... web` — the
+name exists cluster-internally. `wget http://web` returns the whoami dump including
+`Hostname: web-...`. And `http://kuma` answers with `302 Found, Location: /dashboard` —
+so the image finished downloading without us ever looking at it. If nothing comes back here, Kuma
+is still pulling; there is an explicit `kubectl wait` for that further down.
 
-Merksatz: ein Service ist ein **DNS-Name plus eine Liste von Endpoints**. Nichts weiter.
+Takeaway: a Service is a **DNS name plus a list of endpoints**. Nothing more.
 
-> Randnotiz fuer den Fall, dass jemand den vollen Namen tippt: `wget http://web.default.svc.cluster.local`
-> scheitert in Alpine mit `bad address`, `wget http://web.default.svc.cluster.local.` (Punkt am
-> Ende!) funktioniert. Grund ist `ndots:5` in `/etc/resolv.conf` plus musl, das anders als glibc
-> nicht auf den absoluten Namen zurueckfaellt. Kurze Namen benutzen, Thema erledigt.
+> Side note in case someone types the full name: `wget http://web.default.svc.cluster.local`
+> fails in Alpine with `bad address`, `wget http://web.default.svc.cluster.local.` (trailing
+> dot!) works. The reason is `ndots:5` in `/etc/resolv.conf` plus musl, which unlike glibc does
+> not fall back to the absolute name. Use short names, topic closed.
 
-### Teil 2: der Ingress — zwei Dienste, eine Adresse
+### Part 2: the Ingress — two services, one address
 
-Den Reverse-Proxy bringt k3s selbst mit: **traefik** laeuft in `kube-system` als Ingress
-Controller und haengt an Port 80 des Nodes — genau dort kommt unser gemappter Host-Port
-`$WS_PORT` heraus.
+k3s ships the reverse proxy itself: **traefik** runs in `kube-system` as the ingress controller
+and sits on port 80 of the node — which is exactly where our mapped host port `$WS_PORT` comes
+out.
 
-Uptime Kuma hat seinen Ingress schon aus `manifests/10-uptime-kuma.yaml`. Es fehlt nur der
-fuer `web`:
+Uptime Kuma already has its Ingress from `manifests/10-uptime-kuma.yaml`. Only the one for `web`
+is missing:
 
 ```bash
 kubectl create ingress web --class=traefik --rule="whoami.k3d.localhost/*=web:80"
 kubectl get ingress
 ```
 
-**Zu sehen:** zwei Zeilen, beide mit `CLASS traefik` und nach 5–15 Sekunden einer IP in
-`ADDRESS` (in k3d etwas wie `172.20.0.2`).
+**Expect to see:** two lines, both with `CLASS traefik` and, after 5–15 seconds, an IP in
+`ADDRESS` (in k3d something like `172.20.0.2`).
 
 ```bash
 curl -H 'Host: whoami.k3d.localhost' http://127.0.0.1:$WS_PORT
 curl -s -o /dev/null -w 'kuma: HTTP %{http_code}\n' -H 'Host: kuma.k3d.localhost' http://127.0.0.1:$WS_PORT
-curl -s -o /dev/null -w 'ohne Host: HTTP %{http_code}\n' http://127.0.0.1:$WS_PORT
+curl -s -o /dev/null -w 'no Host: HTTP %{http_code}\n' http://127.0.0.1:$WS_PORT
 ```
 
-**Zu sehen:**
+**Expect to see:**
 
-- der whoami-Dump mit `Host: whoami.k3d.localhost` und den `X-Forwarded-*`-Headern von Traefik,
-- `kuma: HTTP 302` — Kuma leitet auf `/dashboard`, das ist die richtige Antwort, nicht 200,
-- `ohne Host: HTTP 404` — Traefik antwortet, kennt aber ohne Hostnamen keine Route.
+- the whoami dump with `Host: whoami.k3d.localhost` and Traefik's `X-Forwarded-*` headers,
+- `kuma: HTTP 302` — Kuma redirects to `/dashboard`, that is the right answer, not 200,
+- `no Host: HTTP 404` — Traefik answers, but without a hostname it knows no route.
 
-**Diese drei Zeilen sind der ganze Block.** Gleiche IP, gleicher Port, drei verschiedene
-Ergebnisse, Unterschied ist ausschliesslich der `Host`-Header. Genau das ist host-basiertes
-Routing; alles andere ist DNS-Kosmetik.
+**These three lines are the whole block.** Same IP, same port, three different results, and the
+only difference is the `Host` header. That is exactly host-based routing; everything else is DNS
+cosmetics.
 
-### Bevor jemand den Browser aufmacht: einmal warten
+### Before anyone opens a browser: wait once
 
-**Alle tippen — dieser Schritt wird nicht uebersprungen:**
+**Everyone types — this step is not skipped:**
 
 ```bash
 kubectl wait --for=condition=Ready pod -l app=kuma --timeout=300s
 ```
 
-**Zu sehen:** `pod/kuma-... condition met`. Erst danach oeffnet irgendwer einen Browser — sonst
-sehen drei Leute einen Fehler, und wir debuggen einen Download. Die 300 Sekunden sind absichtlich
-grosszuegig: zwoelf gleichzeitige Pulls von 149 MB durch ein Konferenz-WLAN dauern. Wer hier in
-den Timeout laeuft, hat ein Netzproblem, kein Kubernetes-Problem —
-`kubectl describe pod -l app=kuma | tail -5` zeigt dann `Pulling`.
+**Expect to see:** `pod/kuma-... condition met`. Only after that does anyone open a browser —
+otherwise three people see an error and we debug a download. The 300 seconds are deliberately
+generous: twelve simultaneous pulls of 149 MB through conference wifi take time. If you hit the
+timeout here you have a network problem, not a Kubernetes problem —
+`kubectl describe pod -l app=kuma | tail -5` then shows `Pulling`.
 
-Jetzt der Blick, der es glaubwuerdig macht — **im Browser**, mit der Portnummer aus
+Now the look that makes it believable — **in the browser**, with the port number from
 `echo $WS_PORT`:
 
 ```
 http://kuma.k3d.localhost:8080
 ```
 
-(Wer `WS_PORT` oben geaendert hat, tippt hier die Zahl aus `echo $WS_PORT` statt 8080 —
-das ist die einzige Stelle in der ganzen Session, an der die Zahl von Hand hin muss.)
+(If you changed `WS_PORT` above, type the number from `echo $WS_PORT` here instead of 8080 —
+that is the only place in the whole session where the number has to go in by hand.)
 
-**Zu sehen:** der Einrichtungsbildschirm von Uptime Kuma. Ein echter Homelab-Dienst, hinter einem
-Hostnamen, aus vier YAML-Objekten. **Noch nichts einrichten** — das kommt im naechsten Block.
+**Expect to see:** the Uptime Kuma setup screen. A real homelab service, behind a hostname, out of
+four YAML objects. **Do not set anything up yet** — that comes in the next block.
 
-**So sieht das zuhause aus** (ein Satz, nicht vorfuehren): ein Wildcard-DNS-Record
-`*.home.example.com` zeigt auf die LoadBalancer-IP von Traefik, cert-manager holt das Zertifikat,
-und ab dann ist jeder neue Dienst genau diese eine `Ingress`-Zeile. Das ist der eigentliche
-Gewinn gegenueber Compose plus handgepflegtem Reverse-Proxy.
+**This is what it looks like at home** (one sentence, do not demo): a wildcard DNS record
+`*.home.example.com` points at Traefik's LoadBalancer IP, cert-manager fetches the certificate,
+and from then on every new service is exactly this one `Ingress` line. That is the real win over
+Compose plus a hand-maintained reverse proxy.
 
-### Symptom → Ursache → Fix
+### Symptom → Cause → Fix
 
-| Symptom | Ursache | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `services "web" already exists` | `expose` zweimal gelaufen — **oder** jemand hat in Minute 16–24 den Notausgang `kubectl apply -f manifests/20-whoami.yaml` benutzt, der Service und Ingress gleich mitanlegt | `kubectl delete svc web`, dann neu — oder einfach weitermachen, der Service ist ja schon da |
-| `Endpoints` leer, obwohl der Pod laeuft | Label passt nicht zum Selector | `kubectl get pods --show-labels` mit `kubectl describe svc` vergleichen |
-| `pods "tmp" already exists` | jemand hat bei der Trainer-Demo mitgetippt und `exit` vergessen | `kubectl delete pod tmp --now` |
-| `ADDRESS` bleibt leer | IngressClass greift nicht | `kubectl get ingressclass`; ist `traefik` nicht Default, ist `--class=traefik` genau der Fix (steht oben schon drin) |
-| kein `traefik`-Pod in `kube-system` | Cluster noch nicht fertig (k3s installiert Traefik per Job; `helm-install-traefik-*` auf `Completed` ist gesund) | 20 s warten, dann `kubectl get pods -n kube-system` erneut |
-| `HTTP 404` **mit** korrektem Host-Header | Ingress zeigt auf einen Service, der keine Endpoints hat | zurueck zu `kubectl describe svc web` |
-| `HTTP 503` | Service da, Pod (noch) nicht ready | `kubectl get pods`; bei Kuma einfach warten |
-| `HTTP 000` / `connection refused` | Host-Port nicht durchgereicht oder `$WS_PORT` leer | `echo $WS_PORT` pruefen; `docker ps \| grep serverlb` muss `0.0.0.0:<WS_PORT>->80/tcp` zeigen. Sonst Cluster mit `-p` neu anlegen |
-| Browser: `kuma.k3d.localhost` loest nicht auf | glibc kennt keine Sonderregel fuer `*.localhost`; mit `systemd-resolved` geht es, mit dnsmasq oft nicht | `echo '127.0.0.1 whoami.k3d.localhost kuma.k3d.localhost' \| sudo tee -a /etc/hosts`. Deshalb steht die `curl -H`-Variante **zuerst**: die braucht gar kein DNS |
-| Browser landet auf `https://` oder in der Suchmaschine, curl geht | Browser erzwingt HTTPS-Upgrade bzw. deutet den Namen als Suchbegriff | `http://` explizit tippen und Enter statt Auswahl; im Zweifel bleibt es bei den `curl`-Zeilen, die beweisen dasselbe |
+| `services "web" already exists` | `expose` ran twice — **or** someone used the emergency exit `kubectl apply -f manifests/20-whoami.yaml` in minute 16–24, which creates the Service and the Ingress along with it | `kubectl delete svc web`, then again — or just carry on, the Service is already there |
+| `Endpoints` empty although the pod is running | label does not match the selector | compare `kubectl get pods --show-labels` with `kubectl describe svc` |
+| `pods "tmp" already exists` | someone typed along during the trainer demo and forgot `exit` | `kubectl delete pod tmp --now` |
+| `ADDRESS` stays empty | IngressClass does not take | `kubectl get ingressclass`; if `traefik` is not the default, `--class=traefik` is exactly the fix (already in the command above) |
+| no `traefik` pod in `kube-system` | cluster not finished yet (k3s installs Traefik via a Job; `helm-install-traefik-*` on `Completed` is healthy) | wait 20 s, then `kubectl get pods -n kube-system` again |
+| `HTTP 404` **with** a correct Host header | Ingress points at a Service that has no endpoints | back to `kubectl describe svc web` |
+| `HTTP 503` | Service is there, pod is not ready (yet) | `kubectl get pods`; with Kuma just wait |
+| `HTTP 000` / `connection refused` | host port not forwarded or `$WS_PORT` empty | check `echo $WS_PORT`; `docker ps \| grep serverlb` must show `0.0.0.0:<WS_PORT>->80/tcp`. Otherwise recreate the cluster with `-p` |
+| browser: `kuma.k3d.localhost` does not resolve | glibc has no special rule for `*.localhost`; it works with `systemd-resolved`, often not with dnsmasq | `echo '127.0.0.1 whoami.k3d.localhost kuma.k3d.localhost' \| sudo tee -a /etc/hosts`. That is why the `curl -H` variant comes **first**: it needs no DNS at all |
+| browser ends up on `https://` or in the search engine, curl works | browser forces an HTTPS upgrade or reads the name as a search term | type `http://` explicitly and hit Enter instead of picking a suggestion; when in doubt the `curl` lines stand, they prove the same thing |
 
 ---
 
-## 34–42 min — Persistenz: der Pod stirbt, die Daten nicht
+## 34–42 min — Persistence: the pod dies, the data does not
 
-**Ziel in einem Satz:** beweisen, dass ein PVC den Pod ueberlebt — an einem Dienst, der eine
-echte Datenbankdatei hat.
+**Goal in one sentence:** prove that a PVC outlives the pod — on a service that has a real
+database file.
 
-Zuerst hinschauen, was da ueberhaupt liegt:
+First look at what is actually in there:
 
 ```bash
 kubectl get pvc
 kubectl exec deploy/kuma -- ls -la /app/data
 ```
 
-**Zu sehen:** PVC auf `Bound`, `RWO`, `1Gi`, StorageClass `local-path` — und im Verzeichnis
-`kuma.db`, `kuma.db-shm`, `kuma.db-wal`. Das ist SQLite. Ein Dienst, eine Datei, ein PVC:
-der haeufigste Fall im Homelab.
+**Expect to see:** PVC on `Bound`, `RWO`, `1Gi`, StorageClass `local-path` — and in the directory
+`kuma.db`, `kuma.db-shm`, `kuma.db-wal`. That is SQLite. One service, one file, one PVC:
+the most common case in a homelab.
 
-Woher die StorageClass kommt, ohne dass wir sie angelegt haben: **local-path-provisioner**, auch
-das ein Bordmittel von k3s und die Default-`StorageClass` — er macht aus einem PVC ein
-Verzeichnis auf genau diesem einen Node.
+Where the StorageClass comes from without us creating it: **local-path-provisioner**, also built
+into k3s and the default `StorageClass` — it turns a PVC into a directory on exactly this one
+node.
 
-Jetzt die Markierung setzen und den Pod umbringen:
+Now set the marker and kill the pod:
 
 ```bash
-kubectl exec deploy/kuma -- sh -c 'echo "workshop 2026" > /app/data/beweis.txt'
+kubectl exec deploy/kuma -- sh -c 'echo "workshop 2026" > /app/data/proof.txt'
 kubectl delete pod -l app=kuma
 kubectl wait --for=condition=Ready pod -l app=kuma --timeout=120s
-kubectl exec deploy/kuma -- cat /app/data/beweis.txt
+kubectl exec deploy/kuma -- cat /app/data/proof.txt
 ```
 
-**Zu sehen:** `kubectl delete` blockiert ~5 Sekunden (es wartet, bis der Pod wirklich weg ist),
-`kubectl wait` meldet nach weiteren ~7 Sekunden `condition met`, und `cat` gibt
-`workshop 2026` aus. **Neuer Pod, alte Datei.**
+**Expect to see:** `kubectl delete` blocks for ~5 seconds (it waits until the pod is really gone),
+`kubectl wait` reports `condition met` after another ~7 seconds, and `cat` prints
+`workshop 2026`. **New pod, old file.**
 
-> **Warum genau diese vier Zeilen, und nicht `rollout status`:** `kubectl rollout status` kann
-> Erfolg melden, waehrend der alte Pod noch terminiert — dann greift das folgende
-> `kubectl exec deploy/kuma` den sterbenden Pod und scheitert mit
-> `unable to upgrade connection`. `kubectl delete` **blockiert** dagegen per Default, bis das
-> Objekt weg ist, und `kubectl wait --for=condition=Ready` wartet auf den Nachfolger. Zusammen
-> ist das rennfrei.
+> **Why exactly these four lines, and not `rollout status`:** `kubectl rollout status` can report
+> success while the old pod is still terminating — then the following
+> `kubectl exec deploy/kuma` grabs the dying pod and fails with
+> `unable to upgrade connection`. `kubectl delete`, by contrast, **blocks** by default until the
+> object is gone, and `kubectl wait --for=condition=Ready` waits for the successor. Together
+> that is race-free.
 >
-> Auch **nicht** benutzen: `kubectl wait --for=delete pod -l app=kuma`. Das schnappt sich beim
-> Start eine Liste aller passenden Pods — und der Ersatz-Pod traegt dasselbe Label. Dann wartet
-> der Befehl bis zum Timeout auf die Loeschung eines Pods, der gerade gestartet ist, und endet mit
-> `timed out waiting for the condition`. Ein Rennen, das man oft verliert: im Test hier scheiterten
-> zwei von drei Laeufen. Wenn du unbedingt auf die Loeschung warten willst, dann auf einen
-> **Namen**:
+> Also do **not** use: `kubectl wait --for=delete pod -l app=kuma`. On start it grabs a list of
+> all matching pods — and the replacement pod carries the same label. The command then waits
+> until the timeout for the deletion of a pod that has just started, and ends with
+> `timed out waiting for the condition`. A race you lose often: two out of three runs failed in
+> testing here. If you really want to wait for the deletion, wait on a **name**:
 > ```bash
 > POD=$(kubectl get pod -l app=kuma -o name)
 > kubectl delete "$POD" --wait=false
@@ -457,129 +447,126 @@ kubectl exec deploy/kuma -- cat /app/data/beweis.txt
 > kubectl wait --for=condition=Ready pod -l app=kuma --timeout=120s
 > ```
 
-**Trainer-Demo, 20 Sekunden:** wo die Daten wirklich liegen.
+**Trainer demo, 20 seconds:** where the data actually lives.
 
 ```bash
 docker exec k3d-homelab-server-0 ls /var/lib/rancher/k3s/storage
 ```
 
-Ein Verzeichnis auf **einem** Node. Damit ist die wichtigste Homelab-Konsequenz gesagt:
-`local-path` heisst, die Daten kleben an dieser einen Maschine. Sobald du einen zweiten Node
-hast, startet der Pod dort und findet ein leeres Verzeichnis — ab da brauchst du Longhorn, NFS
-oder Ceph. Und Backups macht `local-path` keine.
+A directory on **one** node. That says the most important homelab consequence:
+`local-path` means the data is glued to this one machine. As soon as you have a second node, the
+pod starts there and finds an empty directory — from then on you need Longhorn, NFS or Ceph. And
+`local-path` makes no backups.
 
-Ein Blick in die Datei, die das alles beschreibt — drei Bloecke, nicht mehr:
+A look at the file that describes all of it — three blocks, no more:
 
 ```bash
 grep -n -A4 -E 'kind: PersistentVolumeClaim|volumeMounts:|persistentVolumeClaim:' manifests/10-uptime-kuma.yaml
 ```
 
-Drei Stellen muessen zusammenpassen, und das ist die ganze Kunst: das PVC hat einen **Namen**,
-der Container hat einen `volumeMount` mit `mountPath`, und das `volumes`-Feld verbindet beide.
+Three spots have to match, and that is the whole art: the PVC has a **name**, the container has a
+`volumeMount` with a `mountPath`, and the `volumes` field connects the two.
 
-### Symptom → Ursache → Fix
+### Symptom → Cause → Fix
 
-| Symptom | Ursache | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `unable to upgrade connection` bei `exec` | Pod noch nicht ready oder gerade weg | `kubectl wait --for=condition=Ready pod -l app=kuma --timeout=120s`, dann nochmal |
-| `kubectl wait`: `no matching resources found` | zu schnell nach dem Delete, Ersatz-Pod noch nicht erzeugt | Befehl einfach erneut ausfuehren |
-| PVC haengt auf `Terminating` beim Aufraeumen | Finalizer `kubernetes.io/pvc-protection`, solange ein Pod es benutzt | Schutz, kein Bug: erst `kubectl delete deploy kuma`, dann `kubectl delete pvc kuma-data` |
-| Kuma-Pod bleibt `0/1 Running` | readinessProbe noch in der Kulanzzeit (bis 70 s beim ersten Start) | warten. `kubectl describe pod -l app=kuma \| tail -5` zeigt, ob es die Probe ist |
-| `Multi-Attach error` / neuer Pod mountet nicht | zwei Pods wollen ein RWO-Volume | genau deshalb steht `strategy: type: Recreate` im Manifest. Wer es auf RollingUpdate aendert, baut sich das ein |
+| `unable to upgrade connection` on `exec` | pod not ready yet or just gone | `kubectl wait --for=condition=Ready pod -l app=kuma --timeout=120s`, then again |
+| `kubectl wait`: `no matching resources found` | too soon after the delete, replacement pod not created yet | just run the command again |
+| PVC hangs on `Terminating` during cleanup | finalizer `kubernetes.io/pvc-protection`, as long as a pod is using it | protection, not a bug: `kubectl delete deploy kuma` first, then `kubectl delete pvc kuma-data` |
+| Kuma pod stays `0/1 Running` | readinessProbe still in its grace period (up to 70 s on the first start) | wait. `kubectl describe pod -l app=kuma \| tail -5` shows whether it is the probe |
+| `Multi-Attach error` / new pod does not mount | two pods want one RWO volume | that is exactly why `strategy: type: Recreate` is in the manifest. Change it to RollingUpdate and you build this in yourself |
 
 ---
 
-## 42–45 min — Wie geht es weiter
+## 42–45 min — Where to go next
 
-**Niemand tippt.** Zwei Begriffe benennen, damit sie nicht fremd sind:
+**Nobody types.** Name two terms so they are not strangers:
 
-- **Helm** ist fertiges YAML von anderen Leuten, parametrisiert. Entscheidend ist nur die
-  Erkenntnis: Helm erzeugt **genau die Objekte, die wir heute gebaut haben**.
-  `helm get manifest <name>` zeigt sie, `kubectl describe` reparierst du damit selbst.
-  Verzeichnis: [artifacthub.io](https://artifacthub.io).
-- **Operatoren** sind ein Schritt weiter: ein Controller, der einen Dienst *betreibt* statt ihn
-  nur zu installieren — bei Datenbanken uebernimmt z. B. **CloudNativePG** Failover, Backups und
-  Major-Upgrades. Das ist Tag 2, siehe [PLAN.md](./PLAN.md).
+- **Helm** is finished YAML from other people, parameterized. The only thing that matters is the
+  realization: Helm produces **exactly the objects we built today**.
+  `helm get manifest <name>` shows them, and `kubectl describe` is how you fix them yourself.
+  Directory: [artifacthub.io](https://artifacthub.io).
+- **Operators** go one step further: a controller that *operates* a service instead of just
+  installing it — for databases, **CloudNativePG** takes over failover, backups and major
+  upgrades. That is day 2, see [PLAN.md](./PLAN.md).
 
-Der realistische Weg nach Hause, in dieser Reihenfolge:
+The realistic path home, in this order:
 
-1. **Nextcloud** — das Ziel von Minute 0. Du brauchst dafuer exakt die vier Objekte von heute,
-   plus zwei neue Begriffe: ein **Secret** fuer das Datenbankpasswort und ein zweites Deployment
-   fuer **Postgres**. Realistisch ein Abend, und du kannst am Ende jede Zeile lesen. Startpunkt:
-   das offizielle Chart via [artifacthub.io](https://artifacthub.io), danach **unbedingt**
-   `helm get manifest nextcloud` lesen — dort findest du PVC, Service und Ingress wieder.
-2. **Denselben Dienst nochmal von Hand**, ohne Chart. Ab hier entzifferst du fremde Charts statt
-   ihnen zu vertrauen. Anfangspunkt ist `manifests/20-whoami.yaml` aus diesem Repo: dieselben
-   Objekte, die wir getippt haben, als Datei.
-3. **Raus aus k3d**, rein auf echte Hardware: k3s auf einem Rechner oder einer VM. Jetzt brauchst
-   du echtes DNS (Wildcard auf die Cluster-IP), **MetalLB** fuer LAN-IPs und **cert-manager**
-   fuer Zertifikate.
-4. **Zweiter Node** — und hier kommt die Speicherfrage von Minute 34 zurueck. `local-path` traegt
-   das nicht mehr: Longhorn, oder NFS, wenn ein NAS da ist.
-5. **Erst dann** GitOps (Flux/Argo) und Operatoren. Vorher hast du keine Schmerzen, die sie
-   loesen.
+1. **Nextcloud** — the goal from minute 0. You need exactly the four objects from today for it,
+   plus two new terms: a **Secret** for the database password and a second Deployment for
+   **Postgres**. Realistically one evening, and you can read every line at the end. Starting
+   point: the official chart via [artifacthub.io](https://artifacthub.io), then **make sure** you
+   read `helm get manifest nextcloud` — that is where you find the PVC, Service and Ingress again.
+2. **The same service again by hand**, without a chart. From here on you decipher other people's
+   charts instead of trusting them. Starting point is `manifests/20-whoami.yaml` from this repo:
+   the same objects we typed, as a file.
+3. **Out of k3d**, onto real hardware: k3s on a machine or a VM. Now you need real DNS (wildcard
+   to the cluster IP), **MetalLB** for LAN IPs and **cert-manager** for certificates.
+4. **Second node** — and here the storage question from minute 34 comes back. `local-path` does
+   not carry that any more: Longhorn, or NFS if there is a NAS.
+5. **Only then** GitOps (Flux/Argo) and operators. Before that you have no pain for them to
+   solve.
 
-Aufraeumen:
+Cleanup:
 
 ```bash
 k3d cluster delete homelab
 ```
 
-Die Werkzeuge in `~/.local/bin` bleiben und kosten nichts.
+The tools in `~/.local/bin` stay and cost nothing.
 
 ---
 
-## WAS WIR NICHT MACHEN
+## WHAT WE ARE NOT DOING
 
-Gestrichen ist nicht falsch, nur nicht 45-Minuten-tauglich. Alles davon steht in der Langfassung.
+Cut is not wrong, just not fit for 45 minutes. All of it is in the long version.
 
-| Gestrichen | Warum | Wo es steht |
+| Cut | Why | Where it lives |
 |---|---|---|
-| **Nextcloud hands-on** | 461 MB + Postgres 112 MB pro Person, dazu Secret, DB, PVC und eine minutenlange Erstinstallation. Versteckt genau die Objekte, die wir lehren | Rahmenstory in Minute 0, Schritt 1 in "Wie geht es weiter" |
-| **Der imperative/deklarative Umweg** (`kubectl get deploy -o yaml`, `--dry-run=client -o yaml`, `set image`, `rollout status`, `rollout undo`) | drei bis vier Minuten fuer eine Erkenntnis, die eine Datei besser vermittelt als ein Befehl | **Lies `manifests/20-whoami.yaml`** — das ist genau das Deployment, der Service und der Ingress aus dem Workshop als Datei, mit Kommentaren. Zuhause aenderst du dort den Tag und machst `kubectl apply`; `set image` ist der Feuerloescher, nicht der Arbeitsweg |
-| **Orientierungs-Tour durch `kube-system`** | vier Minuten Sightseeing, in dem niemand etwas tut. Die drei Komponenten, die man wirklich kennen muss, stehen jetzt dort, wo sie gebraucht werden | coredns im Service-Teil, traefik im Ingress-Teil, local-path im Persistenz-Block — je ein Satz |
-| **EndpointSlices und die Demo "Service ohne Endpoints"** | 2 min Vorfuehrung fuer eine Regel, die ein Satz genauso gut sagt | die Regel steht im Service-Teil: `Endpoints` leer → immer Selector oder Pod, nie das Netzwerk |
-| **NodePort vs. LoadBalancer** | reine Lesestoff-Entscheidung, kostet live 4 Minuten Diskussion: `NodePort` vergibt einen Zufallsport ab 30000 und muss in k3d zusaetzlich durch den Docker-Wrapper gereicht werden (`k3d cluster edit --port-add`). `LoadBalancer` ist im echten Homelab die richtige Antwort (MetalLB gibt eine LAN-IP), in k3d bekommst du eine Docker-Netz-IP wie `172.20.0.3`, die nur von einem Linux-Host mit rootful Docker erreichbar ist — auf Docker Desktop und rootless Docker ist sie tot. Nebenwirkung: `--type=LoadBalancer --port=80` bleibt in k3d auf `EXTERNAL-IP: <pending>` stehen, weil Klipper pro Service ein DaemonSet mit `hostPort` anlegt und Port 80 schon Traefik haelt. **Ingress funktioniert in k3d und im Homelab identisch — deshalb nur Ingress** | [PLAN.md](./PLAN.md), Abschnitt Service |
-| **`kubectl port-forward`** | braucht ein zweites Terminal pro Person; das kostet mehr Zeit als es lehrt. Merksatz genuegt: es ist ein Debug-Werkzeug, laeuft im Vordergrund und nur fuer dich. Wenn: immer `deploy/web` oder `svc/web` adressieren, nie `web-*` (die Shell expandiert das nicht gegen Kubernetes-Namen) | [PLAN.md](./PLAN.md), Abschnitt Deployment |
-| **Interaktive Shell fuer alle** (`kubectl run tmp -it --rm`) | zwoelf Leute vergessen `exit` und landen bei `pods "tmp" already exists` | hier als Trainer-Demo in Minute 24–34 |
-| **MariaDB per Helm + Go-App** | Multi-Container-Story mit DB-Verbindung ist ein eigener Termin | [PLAN.md](./PLAN.md), [examples/go-mariadb-demo](./examples/go-mariadb-demo/README.md) |
-| **CloudNativePG, PG 17→18 Major Upgrade** | der Wow-Effekt setzt Postgres-Betriebserfahrung voraus; ohne die klingt es nach Magie und frisst den Ingress-Block | [examples/cnpg-major-upgrade-autopilot](./examples/cnpg-major-upgrade-autopilot/README.md) |
-| **Operator Capability Levels** | interessiert niemanden, der einen Dienst betreiben will | [PLAN.md](./PLAN.md), Abschnitt CNPG |
-| **Deployment vs. StatefulSet vs. DaemonSet** | ein Deployment reicht fuer 90 % der Homelab-Dienste | [PLAN.md](./PLAN.md) |
-| **`api-resources` / `explain`-Tour** | Nachschlagewerk, kein Workshop-Inhalt. Einmal nennen: `kubectl explain deployment.spec` | [PLAN.md](./PLAN.md), Abschnitt 1 |
-| **Headlamp, FreeLens** | 30 s k9s reicht, Tool-Auswahl ist Geschmack | [PLAN.md](./PLAN.md), Abschnitt UI Tools |
-| **Namespaces, RBAC, NetworkPolicies, Probes im Detail, Resources/Limits** | alles richtig und wichtig, alles Tag 2. Im Manifest ist eine `readinessProbe` zu sehen — ein Satz dazu, fertig | [PLAN.md](./PLAN.md) |
+| **Nextcloud hands-on** | 461 MB + Postgres 112 MB per person, plus a Secret, a DB, a PVC and a first-run install that takes minutes. Hides exactly the objects we are teaching | framing story in minute 0, step 1 in "Where to go next" |
+| **The imperative/declarative detour** (`kubectl get deploy -o yaml`, `--dry-run=client -o yaml`, `set image`, `rollout status`, `rollout undo`) | three to four minutes for an insight a file conveys better than a command | **Read `manifests/20-whoami.yaml`** — that is exactly the Deployment, the Service and the Ingress from the workshop as a file, with comments. At home you change the tag in there and run `kubectl apply`; `set image` is the fire extinguisher, not the way you work |
+| **Orientation tour through `kube-system`** | four minutes of sightseeing in which nobody does anything. The three components you really have to know are now where they are needed | coredns in the Service part, traefik in the Ingress part, local-path in the persistence block — one sentence each |
+| **EndpointSlices and the "Service without endpoints" demo** | 2 min of live demo for a rule one sentence says just as well | the rule is in the Service part: `Endpoints` empty → always the selector or the pod, never the network |
+| **NodePort vs. LoadBalancer** | pure reading material, costs 4 minutes of live discussion: `NodePort` hands out a random port from 30000 up and in k3d additionally has to be routed through the Docker wrapper (`k3d cluster edit --port-add`). `LoadBalancer` is the right answer in a real homelab (MetalLB gives you a LAN IP), in k3d you get a Docker-network IP like `172.20.0.3` that only a Linux host with rootful Docker can reach — on Docker Desktop and rootless Docker it is dead. Side effect: `--type=LoadBalancer --port=80` stays on `EXTERNAL-IP: <pending>` in k3d, because Klipper creates one DaemonSet with `hostPort` per Service and Traefik already holds port 80. **Ingress works identically in k3d and in a homelab — that is why Ingress only** | [PLAN.md](./PLAN.md), Service section |
+| **`kubectl port-forward`** | needs a second terminal per person; that costs more time than it teaches. The takeaway is enough: it is a debug tool, runs in the foreground and only for you. If you do use it: always address `deploy/web` or `svc/web`, never `web-*` (the shell does not expand that against Kubernetes names) | [PLAN.md](./PLAN.md), Deployment section |
+| **Interactive shell for everyone** (`kubectl run tmp -it --rm`) | twelve people forget `exit` and end up at `pods "tmp" already exists` | here as a trainer demo in minute 24–34 |
+| **MariaDB via Helm + Go app** | a multi-container story with a DB connection is its own session | [PLAN.md](./PLAN.md), [examples/go-mariadb-demo](./examples/go-mariadb-demo/README.md) |
+| **CloudNativePG, PG 17→18 major upgrade** | the wow effect assumes Postgres operations experience; without it, it sounds like magic and eats the Ingress block | [examples/cnpg-major-upgrade-autopilot](./examples/cnpg-major-upgrade-autopilot/README.md) |
+| **Operator capability levels** | nobody who wants to run a service cares | [PLAN.md](./PLAN.md), CNPG section |
+| **Deployment vs. StatefulSet vs. DaemonSet** | a Deployment is enough for 90 % of homelab services | [PLAN.md](./PLAN.md) |
+| **`api-resources` / `explain` tour** | reference material, not workshop content. Name it once: `kubectl explain deployment.spec` | [PLAN.md](./PLAN.md), section 1 |
+| **Headlamp, FreeLens** | 30 s of k9s is enough, tool choice is taste | [PLAN.md](./PLAN.md), UI Tools section |
+| **Namespaces, RBAC, NetworkPolicies, probes in detail, resources/limits** | all correct and all important, all day 2. There is a `readinessProbe` to see in the manifest — one sentence about it, done | [PLAN.md](./PLAN.md) |
 
 ---
 
-## Kuerzungsplan
+## Cut list
 
-Der Ankerpunkt: **bei Minute 32 muessen die drei `curl`-Zeilen gelaufen sein**, damit der
-Persistenz-Block ab Minute 34 die vollen acht Minuten hat. Bist du bei Minute 32 noch im
-Deployment- oder Service-Teil, streiche in **genau dieser** Reihenfolge, bis du wieder im Plan
-bist:
+The anchor point: **by minute 32 the three `curl` lines must have run**, so the persistence block
+gets its full eight minutes from minute 34. If you are still in the Deployment or Service part at
+minute 32, cut in **exactly this** order until you are back on plan:
 
-1. **k9s-Demo** (Deployment-Block) — 30 s, schmerzlos.
-2. **Trainer-Demo Wegwerf-Pod** (Service-Teil) — 90 s. DNS dann behaupten statt zeigen; die drei
-   `curl`-Zeilen beweisen es gleich ohnehin nochmal.
-3. **`docker exec ... /var/lib/rancher/k3s/storage`** (Persistenz) — 20 s, dafuer den
-   Longhorn-Satz sagen.
-4. **`grep -n -A4 ... manifests/10-uptime-kuma.yaml`** (Persistenz) — statt vorfuehren den Satz
-   sagen: PVC-Name, `volumeMount`, `volumes` muessen zusammenpassen, und die Datei liegt im Repo.
-5. **`kubectl exec deploy/kuma -- ls -la /app/data`** (Persistenz) — der Beweis funktioniert auch
-   ohne vorher hinzuschauen.
-6. **Browser auf `kuma.k3d.localhost`** — letzter Ausweg, kostet die Anschaulichkeit. Die drei
-   `curl`-Zeilen bleiben. (Das `kubectl wait` bleibt trotzdem: es kostet nichts und verhindert,
-   dass der Persistenz-Block auf einen Pod trifft, der noch zieht.)
+1. **k9s demo** (Deployment block) — 30 s, painless.
+2. **Trainer demo throwaway pod** (Service part) — 90 s. Then claim DNS instead of showing it; the
+   three `curl` lines prove it again in a moment anyway.
+3. **`docker exec ... /var/lib/rancher/k3s/storage`** (persistence) — 20 s, say the Longhorn
+   sentence instead.
+4. **`grep -n -A4 ... manifests/10-uptime-kuma.yaml`** (persistence) — instead of demoing it, say
+   the sentence: PVC name, `volumeMount`, `volumes` have to match, and the file is in the repo.
+5. **`kubectl exec deploy/kuma -- ls -la /app/data`** (persistence) — the proof works without
+   looking first.
+6. **Browser on `kuma.k3d.localhost`** — last resort, costs you the vividness. The three
+   `curl` lines stay. (The `kubectl wait` stays regardless: it costs nothing and keeps the
+   persistence block from hitting a pod that is still pulling.)
 
-**Nicht streichen, unter keinen Umstaenden** — das sind die vier Momente, fuer die die Leute
-gekommen sind:
+**Do not cut, under any circumstances** — these are the four moments people came for:
 
-- `kubectl delete pod -l app=web` → Pod kommt mit neuem Namen zurueck (Deployment, 16–24)
-- `kubectl describe svc web` → `Selector` und `Endpoints` (Service/Ingress, 24–34)
-- drei `curl` mit unterschiedlichem `Host`-Header auf **dieselbe** Adresse (Service/Ingress, 24–34)
-- `kubectl delete pod -l app=kuma` → `beweis.txt` ist noch da (Persistenz, 34–42)
+- `kubectl delete pod -l app=web` → pod comes back with a new name (Deployment, 16–24)
+- `kubectl describe svc web` → `Selector` and `Endpoints` (Service/Ingress, 24–34)
+- three `curl`s with a different `Host` header against **the same** address (Service/Ingress, 24–34)
+- `kubectl delete pod -l app=kuma` → `proof.txt` is still there (persistence, 34–42)
 
-Wenn bei Minute 30 klar ist, dass es nicht fuer beides reicht: die drei `curl`-Zeilen machen,
-den Browser-Blick streichen und direkt in die Persistenz gehen. Persistenz ueberzeugt mehr Leute
-als Routing, und Kuma laeuft zu diesem Zeitpunkt sowieso schon.
+If at minute 30 it is clear there is not enough time for both: do the three `curl` lines, cut the
+browser look and go straight into persistence. Persistence convinces more people than routing,
+and Kuma is already running by that point anyway.
