@@ -279,10 +279,13 @@ Danach pruefen:
 
     ./scripts/setup-tools.sh --check
 
-Und dann das Cluster bauen (machen wir gemeinsam):
+Und dann das Cluster bauen (machen wir gemeinsam). Der Host-Port steckt in einer
+Variablen, damit ihn niemand spaeter in fuenf Befehlen suchen muss - wenn 8080
+bei dir belegt ist, nimm hier 18080 und sonst nichts aendern:
 
+    export WS_PORT=8080
     k3d cluster create homelab \\
       --image rancher/k3s:v1.36.4-k3s1 \\
-      -p "8080:80@loadbalancer"
+      -p "\${WS_PORT}:80@loadbalancer"
     kubectl get nodes
 EOF

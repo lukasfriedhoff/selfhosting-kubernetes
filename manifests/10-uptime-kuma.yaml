@@ -1,0 +1,111 @@
+# Uptime Kuma - ein echter Homelab-Dienst, klein genug fuer einen Workshop.
+#
+# Eine Datei, vier Objekte - genau die vier, um die es heute geht:
+#
+#   PersistentVolumeClaim  angeforderter Speicher, ueberlebt den Pod
+#   Deployment             "halte einen Pod von diesem Image am Leben"
+#   Service                stabiler Name + IP vor wechselnden Pods
+#   Ingress                HTTP-Router von aussen nach innen
+#
+# Anwenden:
+#   kubectl apply -f manifests/10-uptime-kuma.yaml
+#
+# Das Image ist ~149 MB. Deshalb starten wir es im Workshop als Erstes und
+# reden weiter, waehrend es zieht.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kuma-data
+  labels:
+    app: kuma
+spec:
+  # ReadWriteOnce = genau ein Node darf schreiben. Fuer SQLite genau richtig.
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # Keine storageClassName-Angabe => die Default-StorageClass des Clusters.
+  # In k3s ist das local-path: ein Verzeichnis auf genau diesem einen Node.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuma
+  labels:
+    app: kuma
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kuma
+  strategy:
+    # Recreate, nicht RollingUpdate: eine SQLite-Datei vertraegt keine zwei
+    # Schreiber. Der alte Pod muss weg sein, bevor der neue startet.
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: kuma
+    spec:
+      containers:
+        - name: uptime-kuma
+          # Fester Tag, kein :latest. Bei :latest setzt Kubernetes
+          # imagePullPolicy: Always und zieht bei jedem Start neu.
+          image: docker.io/louislam/uptime-kuma:1
+          ports:
+            - name: http
+              containerPort: 3001
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            # 12 x 5 s = eine Minute Kulanz fuer den ersten Start, in dem
+            # Uptime Kuma seine SQLite-Datenbank anlegt.
+            failureThreshold: 12
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: kuma-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuma
+  labels:
+    app: kuma
+spec:
+  # Kein type: angegeben => ClusterIP. Nur cluster-intern erreichbar,
+  # dafuer unter dem DNS-Namen "kuma" bzw. "kuma.default.svc.cluster.local".
+  selector:
+    app: kuma
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kuma
+  labels:
+    app: kuma
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: kuma.k3d.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kuma
+                port:
+                  name: http

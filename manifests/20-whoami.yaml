@@ -1,0 +1,78 @@
+# Genau das, was diese drei Befehle im Workshop erzeugen:
+#
+#   kubectl create deployment web --image traefik/whoami:v1.12.0
+#   kubectl expose deployment web --port 80
+#   kubectl create ingress web --class=traefik --rule="whoami.k3d.localhost/*=web:80"
+#
+# Zwei Verwendungen:
+#   1) Notausgang, wenn die imperativen Befehle schiefgegangen sind:
+#        kubectl apply -f manifests/20-whoami.yaml
+#   2) Lesestoff: so sieht derselbe Wunsch als Datei aus - und DAS ist die
+#      Form, in der man Dienste zuhause dauerhaft betreibt.
+#
+# Zwei Unterschiede zur imperativen Variante, beide absichtlich:
+#   - die Ports heissen hier "http" statt nur 80. Namen sind robuster, sobald
+#     sich Portnummern aendern; die imperativen Befehle koennen das nicht.
+#   - der Ingress steht hier mit pathType: Prefix und path: / - genau das
+#     erzeugt "--rule=host/*=svc:80" auch, nur unsichtbar.
+#
+# Hinweis: wenn du das hier auf bereits imperativ erzeugte Objekte anwendest,
+# warnt kubectl einmal ueber ein fehlendes "last-applied-configuration".
+# Harmlos, danach ist die Datei die Quelle der Wahrheit.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami:v1.12.0
+          ports:
+            - name: http
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: whoami.k3d.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  name: http
